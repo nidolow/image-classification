@@ -47,8 +47,16 @@ def get_data_frames(data_path):
     return train_df, validation_df
 
 
-def generate_data_flow(data_frame, conf, data_path):
-    data_generator = ImageDataGenerator(rescale=1. / 255)
+def generate_data_flow(data_frame, conf, data_path, augment=False):
+    if augment:
+        data_generator = ImageDataGenerator(rescale=1. / 255,
+                                            horizontal_flip=True,
+                                            rotation_range=30,
+                                            zoom_range=0.2,
+                                            width_shift_range=0.2,
+                                            height_shift_range=0.2)
+    else:
+        data_generator = ImageDataGenerator(rescale=1. / 255)
     data_flow = data_generator.flow_from_dataframe(
         data_frame,
         data_path,
@@ -129,11 +137,13 @@ def main():
     parser.add_option('-e', '--early_stop', dest='early_stop', default=5, type='int', help='early stopping')
     parser.add_option('-n', '--batch_norm', action='store_true', dest='batch_norm', default=False,
                       help='add batch normalization')
+    parser.add_option('-a', '--data_augment', action='store_true', dest='data_augment', default=False,
+                      help='add batch normalization')
     (options, args) = parser.parse_args()
     config.update(vars(options))
 
     train_df, validation_df = get_data_frames(DATA_PATH)
-    train_data = generate_data_flow(train_df, config, DATA_PATH)
+    train_data = generate_data_flow(train_df, config, DATA_PATH, config['data_augment'])
     validation_data = generate_data_flow(validation_df, config, DATA_PATH)
     model = generate_model(config)
     print(config)
@@ -149,4 +159,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
