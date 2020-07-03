@@ -7,6 +7,7 @@ import json
 import hashlib
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from optparse import OptionParser
 
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
@@ -17,17 +18,6 @@ from tensorflow.keras.optimizers import Adam
 
 DATA_PATH = 'data/train/'
 OUTPUT_DIR = 'models/'
-CONF = {
-    'batch': 128,
-    'max_epochs': 50,
-    'height': 128,
-    'width': 128,
-    'learning_rate': 0.0001,
-    'early_stop': True,
-    'batch_norm': False,
-    'dropout': True,
-    'features': {}
-}
 
 
 def limit_gpu_mem(max_gpu_mem=1536):
@@ -45,7 +35,7 @@ def limit_gpu_mem(max_gpu_mem=1536):
             print(e)
 
 
-def get_data_frames(data_path=DATA_PATH):
+def get_data_frames(data_path):
     df = pd.DataFrame()
     for category in os.listdir(data_path):
         print('Loading category:', category)
@@ -57,87 +47,106 @@ def get_data_frames(data_path=DATA_PATH):
     return train_df, validation_df
 
 
-def generate_data_flow(data_frame, data_path=DATA_PATH):
+def generate_data_flow(data_frame, conf, data_path):
     data_generator = ImageDataGenerator(rescale=1. / 255)
     data_flow = data_generator.flow_from_dataframe(
         data_frame,
         data_path,
         x_col='filename',
         y_col='category',
-        batch_size=CONF['batch'],
-        target_size=(CONF['height'], CONF['width']),
+        batch_size=conf['batch'],
+        target_size=(conf['height'], conf['width']),
         class_mode='categorical')
     return data_flow
 
 
-def generate_model():
+def generate_model(conf):
     model = Sequential()
 
-    model.add(Conv2D(16, 3, padding='same', activation='relu', input_shape=(CONF['height'], CONF['width'], 3)))
-    if CONF['batch_norm']: model.add(BatchNormalization())
+    model.add(Conv2D(16, 3, padding='same', activation='relu', input_shape=(conf['height'], conf['width'], 3)))
+    if conf['batch_norm']: model.add(BatchNormalization())
     model.add(MaxPooling2D())
-    if CONF['dropout']: model.add(Dropout(0.25))
+    if conf['dropout']: model.add(Dropout(0.25))
 
     model.add(Conv2D(32, 3, padding='same', activation='relu'))
-    if CONF['batch_norm']: model.add(BatchNormalization())
+    if conf['batch_norm']: model.add(BatchNormalization())
     model.add(MaxPooling2D())
-    if CONF['dropout']: model.add(Dropout(0.25))
+    if conf['dropout']: model.add(Dropout(0.25))
 
     model.add(Conv2D(64, 3, padding='same', activation='relu'))
-    if CONF['batch_norm']: model.add(BatchNormalization())
+    if conf['batch_norm']: model.add(BatchNormalization())
     model.add(MaxPooling2D())
-    if CONF['dropout']: model.add(Dropout(0.25))
+    if conf['dropout']: model.add(Dropout(0.25))
 
     model.add(Flatten())
     model.add(Dense(512, activation='relu'))
-    if CONF['dropout']: model.add(Dropout(0.25))
-    if CONF['batch_norm']: model.add(BatchNormalization())
+    if conf['dropout']: model.add(Dropout(0.25))
+    if conf['batch_norm']: model.add(BatchNormalization())
 
     model.add(Dense(3, activation='softmax'))
 
-    model.compile(optimizer=Adam(lr=CONF['learning_rate']),
+    model.compile(optimizer=Adam(lr=conf['learning_rate']),
                   loss='categorical_crossentropy',
                   metrics=['accuracy'])
 
     model.summary()
-    CONF['model'] = json.loads(model.to_json())
     return model
 
 
-def train(model, train_data, validation_data, steps_per_epoch, validation_steps):
-    early_stop = EarlyStopping(monitor='val_loss', patience=3)
+def train(model, train_data, validation_data, steps_per_epoch, validation_steps, epochs, patience):
+    early_stop = EarlyStopping(monitor='val_loss', patience=patience)
     history = model.fit(
         train_data,
         steps_per_epoch=steps_per_epoch,
-        epochs=CONF['max_epochs'],
+        epochs=epochs,
         validation_data=validation_data,
         validation_steps=validation_steps,
         callbacks=[early_stop])
     return history
 
 
-def serialize(model, history, output_dir=OUTPUT_DIR):
-    name_hash = str(hashlib.md5(json.dumps(CONF, sort_keys=True).encode("utf-8")).hexdigest()[0:7])
+def serialize(model, history, conf, output_dir):
+    conf['model'] = json.loads(model.to_json())
+    name_hash = str(hashlib.md5(json.dumps(conf, sort_keys=True).encode("utf-8")).hexdigest()[0:7])
 
     model.save_weights(os.path.join(output_dir, 'model-' + name_hash + '.mdl'))
     with open(os.path.join(output_dir, 'model-' + name_hash + '.history'), 'w') as w:
         pd.DataFrame(history.history).to_json(w)
     with open(os.path.join(output_dir, 'model-' + name_hash + '.conf'), 'w') as w:
-        json.dump(CONF, w)
+        json.dump(conf, w)
 
 
 def main():
+    config = {
+        'dropout': True
+    }
+    parser = OptionParser()
+    parser.add_option('-b', '--batch', dest='batch', default=128, type='int', help='batch size')
+    parser.add_option('--width', dest='width', default=128, type='int', help='image width')
+    parser.add_option('--height', dest='height', default=128, type='int', help='image height')
+    parser.add_option('-l', '--learning_rate', dest='learning_rate', default=0.0001, type='float', help='learning rate')
+    parser.add_option('--max_epochs', dest='max_epochs', default=50, type='int', help='max number of epochs')
+    parser.add_option('-e', '--early_stop', dest='early_stop', default=5, type='int', help='early stopping')
+    parser.add_option('-n', '--batch_norm', action='store_true', dest='batch_norm', default=False,
+                      help='add batch normalization')
+    (options, args) = parser.parse_args()
+    config.update(vars(options))
+
     train_df, validation_df = get_data_frames(DATA_PATH)
-    train_data = generate_data_flow(train_df, DATA_PATH)
-    validation_data = generate_data_flow(validation_df, DATA_PATH)
-    model = generate_model()
+    train_data = generate_data_flow(train_df, config, DATA_PATH)
+    validation_data = generate_data_flow(validation_df, config, DATA_PATH)
+    model = generate_model(config)
+    print(config)
     history = train(model,
                     train_data,
                     validation_data,
-                    len(train_df)//CONF['batch'],
-                    len(validation_df)//CONF['batch'])
-    serialize(model, history, OUTPUT_DIR)
+                    steps_per_epoch=len(train_df)//config['batch'],
+                    validation_steps=len(validation_df)//config['batch'],
+                    epochs=config['max_epochs'],
+                    patience=config['early_stop'])
+    serialize(model, history, config, OUTPUT_DIR)
 
 
 if __name__ == "__main__":
     main()
+    
