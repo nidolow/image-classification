@@ -94,7 +94,6 @@ def generate_model(conf):
 
     model.add(Dense(3, activation='softmax'))
 
-    model.summary()
     return model
 
 
@@ -146,6 +145,7 @@ def main():
     train_data = generate_data_flow(train_df, config, DATA_PATH, config['data_augment'])
     validation_data = generate_data_flow(validation_df, config, DATA_PATH)
     model = generate_model(config)
+    model.summary()
     print(config)
     history = train(model,
                     train_data,
