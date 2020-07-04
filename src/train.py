@@ -47,7 +47,7 @@ def get_data_frames(data_path):
     return train_df, validation_df
 
 
-def generate_data_flow(data_frame, conf, data_path, augment=False):
+def generate_data_flow(data_frame, conf, data_path, augment=False, shuffle=True):
     if augment:
         data_generator = ImageDataGenerator(rescale=1. / 255,
                                             horizontal_flip=True,
@@ -64,7 +64,8 @@ def generate_data_flow(data_frame, conf, data_path, augment=False):
         y_col='category',
         batch_size=conf['batch'],
         target_size=(conf['height'], conf['width']),
-        class_mode='categorical')
+        class_mode='categorical',
+        shuffle=shuffle)
     return data_flow
 
 
@@ -93,15 +94,14 @@ def generate_model(conf):
 
     model.add(Dense(3, activation='softmax'))
 
-    model.compile(optimizer=Adam(lr=conf['learning_rate']),
-                  loss='categorical_crossentropy',
-                  metrics=['accuracy'])
-
     model.summary()
     return model
 
 
-def train(model, train_data, validation_data, steps_per_epoch, validation_steps, epochs, patience):
+def train(model, train_data, validation_data, steps_per_epoch, validation_steps, epochs, learning_rate, patience):
+    model.compile(optimizer=Adam(lr=learning_rate),
+                  loss='categorical_crossentropy',
+                  metrics=['accuracy'])
     early_stop = EarlyStopping(monitor='val_loss', patience=patience)
     history = model.fit(
         train_data,
@@ -153,6 +153,7 @@ def main():
                     steps_per_epoch=len(train_df)//config['batch'],
                     validation_steps=len(validation_df)//config['batch'],
                     epochs=config['max_epochs'],
+                    learning_rate=config['learning_rate'],
                     patience=config['early_stop'])
     serialize(model, history, config, OUTPUT_DIR)
 
