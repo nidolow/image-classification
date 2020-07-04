@@ -12,7 +12,7 @@ def predict(model_path):
     with open(os.path.splitext(model_path)[0]+'.conf') as json_read:
         config = json.load(json_read)
 
-    _, test_df = get_data_frames(DATA_PATH)
+    _, _, test_df = get_data_frames(DATA_PATH)
     test_data = generate_data_flow(test_df, config, DATA_PATH, augment=False, shuffle=False)
 
     model = generate_model(config)

@@ -37,14 +37,15 @@ def limit_gpu_mem(max_gpu_mem=1536):
 
 def get_data_frames(data_path):
     df = pd.DataFrame()
-    for category in os.listdir(data_path):
+    for category in sorted(os.listdir(data_path)):
         print('Loading category:', category)
-        filenames = [os.path.join(category, f) for f in os.listdir(os.path.join(data_path, category))]
+        filenames = [os.path.join(category, f) for f in sorted(os.listdir(os.path.join(data_path, category)))]
         df = pd.concat([df,
                         pd.DataFrame({'filename': filenames,
                                       'category': category})])
-    train_df, validation_df = train_test_split(df, test_size=0.10, random_state=29)
-    return train_df, validation_df
+    train_df, test_validation_df = train_test_split(df, test_size=0.20, random_state=29)
+    test_df, validation_df = train_test_split(test_validation_df, test_size=0.50, random_state=31)
+    return train_df, validation_df, test_df
 
 
 def generate_data_flow(data_frame, conf, data_path, augment=False, shuffle=True):
@@ -141,7 +142,7 @@ def main():
     (options, args) = parser.parse_args()
     config.update(vars(options))
 
-    train_df, validation_df = get_data_frames(DATA_PATH)
+    train_df, validation_df, _ = get_data_frames(DATA_PATH)
     train_data = generate_data_flow(train_df, config, DATA_PATH, config['data_augment'])
     validation_data = generate_data_flow(validation_df, config, DATA_PATH)
     model = generate_model(config)
