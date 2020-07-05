@@ -13,7 +13,7 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Conv2D, Flatten, Dropout, MaxPooling2D, BatchNormalization, Dropout
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.optimizers import Adam
 
 DATA_PATH = 'data/train/'
@@ -99,17 +99,31 @@ def generate_model(conf):
 
 
 def train(model, train_data, validation_data, steps_per_epoch, validation_steps, epochs, learning_rate, patience):
-    model.compile(optimizer=Adam(lr=learning_rate),
-                  loss='categorical_crossentropy',
-                  metrics=['accuracy'])
-    early_stop = EarlyStopping(monitor='val_loss', patience=patience)
+    model.compile(
+        optimizer=Adam(lr=learning_rate),
+        loss='categorical_crossentropy',
+        metrics=['accuracy'])
+
+    early_stop = EarlyStopping(
+        monitor='val_loss',
+        patience=patience,
+        restore_best_weights=True,
+        verbose=1)
+
+    learning_rate_reduction = ReduceLROnPlateau(
+        monitor='val_loss',
+        patience=2,
+        verbose=1,
+        factor=0.5,
+        min_lr=0.00001)
+
     history = model.fit(
         train_data,
         steps_per_epoch=steps_per_epoch,
         epochs=epochs,
         validation_data=validation_data,
         validation_steps=validation_steps,
-        callbacks=[early_stop])
+        callbacks=[early_stop, learning_rate_reduction])
     return history
 
 
