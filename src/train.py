@@ -35,7 +35,7 @@ def limit_gpu_mem(max_gpu_mem=1536):
             print(e)
 
 
-def get_data_frames(data_path):
+def get_train_data_frames(data_path):
     df = pd.DataFrame()
     for category in sorted(os.listdir(data_path)):
         print('Loading category:', category)
@@ -131,7 +131,7 @@ def main():
         parser.error('Required option --arch (vgg_v1|vgg_v2|baseline).')
     config.update(vars(options))
 
-    train_df, validation_df, _ = get_data_frames(DATA_PATH)
+    train_df, validation_df, _ = get_train_data_frames(DATA_PATH)
     train_data = generate_data_flow(train_df, config, DATA_PATH, config['data_augment'])
     validation_data = generate_data_flow(validation_df, config, DATA_PATH)
     model = generate_model(config)
