@@ -10,11 +10,11 @@ from sklearn.model_selection import train_test_split
 from optparse import OptionParser
 
 import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Conv2D, Flatten, Dropout, MaxPooling2D, BatchNormalization, Dropout, ReLU
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.optimizers import Adam
+
+from models import generate_model
 
 DATA_PATH = 'data/train/'
 OUTPUT_DIR = 'models/'
@@ -69,56 +69,6 @@ def generate_data_flow(data_frame, conf, data_path, augment=False, shuffle=True)
         shuffle=shuffle)
     return data_flow
 
-def add_conv(model, filters, dropout, batch_norm):
-    model.add(Conv2D(filters, 3, padding='same', activation=None))
-    if batch_norm: model.add(BatchNormalization())
-    model.add(ReLU())
-    if dropout: model.add(Dropout(0.25))
-
-def generate_model(conf):
-    model = Sequential()
-
-    model.add(Conv2D(32, 3, padding='same', activation=None, input_shape=(conf['height'], conf['width'], 3)))
-    if conf['batch_norm']: model.add(BatchNormalization())
-    model.add(ReLU())
-    if conf['dropout']: model.add(Dropout(0.25))
-    add_conv(model, 32, conf['dropout'], conf['batch_norm'])
-    model.add(MaxPooling2D(pool_size=(2,2), strides=(2,2)))
-
-    add_conv(model, 64, conf['dropout'], conf['batch_norm'])
-    add_conv(model, 64, conf['dropout'], conf['batch_norm'])
-    model.add(MaxPooling2D(pool_size=(2,2), strides=(2,2)))
-
-    add_conv(model, 128, conf['dropout'], conf['batch_norm'])
-    add_conv(model, 128, conf['dropout'], conf['batch_norm'])
-    add_conv(model, 128, conf['dropout'], conf['batch_norm'])
-    model.add(MaxPooling2D(pool_size=(2,2), strides=(2,2)))
-
-    add_conv(model, 256, conf['dropout'], conf['batch_norm'])
-    add_conv(model, 256, conf['dropout'], conf['batch_norm'])
-    add_conv(model, 256, conf['dropout'], conf['batch_norm'])
-    model.add(MaxPooling2D(pool_size=(2,2), strides=(2,2)))
-
-    add_conv(model, 512, conf['dropout'], conf['batch_norm'])
-    add_conv(model, 512, conf['dropout'], conf['batch_norm'])
-    add_conv(model, 512, conf['dropout'], conf['batch_norm'])
-    model.add(MaxPooling2D(pool_size=(2,2), strides=(2,2)))
-
-    model.add(Flatten())
-    model.add(Dense(512, activation=None))
-    if conf['batch_norm']: model.add(BatchNormalization())
-    model.add(ReLU())
-    if conf['dropout']: model.add(Dropout(0.25))
-
-    model.add(Dense(512, activation=None))
-    if conf['dropout']: model.add(Dropout(0.25))
-    model.add(ReLU())
-    if conf['batch_norm']: model.add(BatchNormalization())
-
-    model.add(Dense(3, activation='softmax'))
-
-    return model
-
 
 def train(model, train_data, validation_data, steps_per_epoch, validation_steps, epochs, learning_rate, patience):
     model.compile(
@@ -162,8 +112,7 @@ def serialize(model, history, conf, output_dir):
 
 def main():
     config = {
-        'dropout': True,
-        'arch': 'vgg_v1'
+        'dropout': True
     }
     parser = OptionParser()
     parser.add_option('-b', '--batch', dest='batch', default=128, type='int', help='batch size')
@@ -176,7 +125,10 @@ def main():
                       help='add batch normalization')
     parser.add_option('-a', '--data_augment', action='store_true', dest='data_augment', default=False,
                       help='add batch normalization')
+    parser.add_option('--arch', dest='arch', help='model architecture (vgg_v1|vgg_v2|baseline')
     (options, args) = parser.parse_args()
+    if options.arch is None:
+        parser.error('Required option --arch (vgg_v1|vgg_v2|baseline).')
     config.update(vars(options))
 
     train_df, validation_df, _ = get_data_frames(DATA_PATH)

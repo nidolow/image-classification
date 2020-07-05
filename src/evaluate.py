@@ -3,7 +3,8 @@ import json
 import numpy as np
 from optparse import OptionParser
 
-from train import get_data_frames, generate_data_flow, generate_model
+from models import generate_model
+from train import get_data_frames, generate_data_flow
 
 DATA_PATH = 'data/train/'
 
