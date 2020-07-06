@@ -160,7 +160,7 @@ def main():
                       help='add batch normalization')
     parser.add_option('-a', '--data_augment', action='store_true', dest='data_augment', default=False,
                       help='add batch normalization')
-    parser.add_option('--arch', dest='arch', help='model architecture (vgg_v1|vgg_v2|baseline')
+    parser.add_option('--arch', dest='arch', help='model architecture (vgg_v1|vgg_v2|baseline)')
     parser.add_option('--data_path', dest='data_path', default='data/train/',
                       help='path to training files directory')
     parser.add_option('--output_dir', dest='output_dir', default='models/',

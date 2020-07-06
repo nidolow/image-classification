@@ -46,7 +46,7 @@ def main():
     # get files from dir
     if options.input_dir:
         for file_name in sorted(os.listdir(options.input_dir)):
-            if os.path.splitext(file_name)[1] == '.jpg':
+            if os.path.splitext(file_name)[1].lower() == '.jpg':
                 data_frame = pd.concat([data_frame, pd.DataFrame({'filename': [os.path.join(options.input_dir, file_name)]})])
 
     if len(data_frame) == 0:
