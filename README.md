@@ -142,6 +142,15 @@ human accuracy
 0.9954093343534812
 ```
 
+## Predefined model
+
+Before using, predefined model has to be unpacked with command:
+
+```
+cat models/model-2a05ce2.mdl.data-00001-of-00002.tar.gz.* | tar xzv
+```
+
+
 
 ## Predictions
 
