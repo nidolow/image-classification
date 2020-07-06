@@ -13,11 +13,6 @@ CLASS_INDICES = {'dog': 1, 'cat': 0, 'human': 2}  # ToDo: should be saved with t
 OUTPUT_COLUMNS = {0: 1, 1: 0, 2: 2}  # to map CLASS_INDICES order
 
 
-def append_img_group(img_group, img_path, conf):
-    img = image.load_img(img_path, target_size=(conf['width'], conf['height']))
-    img_group.extend(img)
-
-
 def main():
     parser = OptionParser(usage='usage: %prog -m model_path -o output_file [options] img1, img2, ...')
     parser.add_option('-m', '--model_path', dest='model_path', help='model to load')
@@ -30,6 +25,7 @@ def main():
     if not options.output_file:
         parser.error('Required option -o.')
 
+    # read config and model
     with open(os.path.splitext(options.model_path)[0] + '.conf') as json_read:
         config = json.load(json_read)
     model = generate_model(config)
@@ -37,7 +33,7 @@ def main():
 
     data_frame = pd.DataFrame()
 
-    # get files as arg
+    # get files from arg
     for arg in args:
         data_frame = pd.concat([data_frame, pd.DataFrame({'filename': [arg]})])
 
@@ -56,6 +52,7 @@ def main():
     if len(data_frame) == 0:
         raise ValueError('No input files found.')
 
+    # prepare data to process
     data_generator = ImageDataGenerator(rescale=1. / 255)
     data_flow = data_generator.flow_from_dataframe(
         data_frame,
@@ -65,9 +62,11 @@ def main():
         class_mode=None,
         shuffle=False)
 
+    # predict
     predictions = model.predict(data_flow)
     predictions = np.array(np.argmax(predictions, axis=-1))
 
+    # write csv
     with open(options.output_file, 'w', newline='') as file:
         writer = csv.writer(file)
         header = ['file_name']

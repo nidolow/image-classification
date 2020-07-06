@@ -6,36 +6,29 @@ import os
 import json
 import hashlib
 import pandas as pd
-from sklearn.model_selection import train_test_split
 from optparse import OptionParser
+from sklearn.model_selection import train_test_split
 
-import tensorflow as tf
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.optimizers import Adam
 
 from models import generate_model
 
-DATA_PATH = 'data/train/'
-OUTPUT_DIR = 'models/'
-
-
-def limit_gpu_mem(max_gpu_mem=1536):
-    gpus = tf.config.experimental.list_physical_devices('GPU')
-    if gpus:  # Better GPU works fine with no restrictions
-        # Restrict TensorFlow to only allocate limited amount of memory on the first GPU
-        try:
-            tf.config.experimental.set_virtual_device_configuration(
-                gpus[0],
-                [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=max_gpu_mem)])
-            logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-            print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
-        except RuntimeError as e:
-            # Virtual devices must be set before GPUs have been initialized
-            print(e)
-
 
 def get_train_data_frames(data_path):
+    """
+    Loads training files paths and pre-splits them into sets.
+
+    Args:
+        data_path (str): training data directory
+
+    Returns:
+        train_df (DataFrame): training set 80%
+        validation_df (DataFrame): validation set 10%
+        train_df (DataFrame): test set 10%
+    """
+
     df = pd.DataFrame()
     for category in sorted(os.listdir(data_path)):
         print('Loading category:', category)
@@ -48,8 +41,21 @@ def get_train_data_frames(data_path):
     return train_df, validation_df, test_df
 
 
-def generate_data_flow(data_frame, conf, data_path, augment=False, shuffle=True):
-    if augment:
+def generate_data_flow(data_frame, conf, data_path, shuffle=True):
+    """
+    Generates batches of tensor data image from dataframe.
+
+    Args:
+        data_frame (DataFrame): input data
+        conf (dict): training configuration parameters
+        data_path (str): training data directory
+        shuffle (bool): if True shuffles order of data files
+
+    Returns:
+        data_flow (DirectoryIterator): iterator capable of reading images from disk
+    """
+
+    if conf['data_augment']:
         data_generator = ImageDataGenerator(rescale=1. / 255,
                                             horizontal_flip=True,
                                             rotation_range=30,
@@ -71,6 +77,25 @@ def generate_data_flow(data_frame, conf, data_path, augment=False, shuffle=True)
 
 
 def train(model, train_data, validation_data, steps_per_epoch, validation_steps, epochs, learning_rate, patience):
+    """
+        Trains model for given number of epochs or until early stopping condition
+        is met.
+
+        Args:
+            model (Sequential): object with model structure to train
+            train_data (DirectoryIterator): iterator for training data
+            validation_data (DirectoryIterator): iterator for validation data
+            steps_per_epoch (int): number of training steps per epoch
+            validation_steps (int): number of validation steps per epoch
+            epochs (int): maximum number of epochs to train
+            learning_rate (int): starting learning rate
+            patience (int): number of epochs with no improvement after which training
+                will be stopped
+
+        Returns:
+            history (History): object with record of training loss and accuracy values
+        """
+
     model.compile(
         optimizer=Adam(lr=learning_rate),
         loss='categorical_crossentropy',
@@ -100,6 +125,16 @@ def train(model, train_data, validation_data, steps_per_epoch, validation_steps,
 
 
 def serialize(model, history, conf, output_dir):
+    """
+    Saves model weighs, training configuration and training history.
+
+    Args:
+        model (Sequential): object with trained model structure
+        history (History): object with record of training loss and accuracy values
+        conf (dict): model and training configuration parameters
+        output_dir (str): directory to save files with training results
+    """
+
     conf['model'] = json.loads(model.to_json())
     name_hash = str(hashlib.md5(json.dumps(conf, sort_keys=True).encode("utf-8")).hexdigest()[0:7])
 
@@ -114,7 +149,7 @@ def main():
     config = {
         'dropout': True
     }
-    parser = OptionParser()
+    parser = OptionParser(usage='usage: %prog --arch arg [options]')
     parser.add_option('-b', '--batch', dest='batch', default=128, type='int', help='batch size')
     parser.add_option('--width', dest='width', default=128, type='int', help='image width')
     parser.add_option('--height', dest='height', default=128, type='int', help='image height')
@@ -126,27 +161,33 @@ def main():
     parser.add_option('-a', '--data_augment', action='store_true', dest='data_augment', default=False,
                       help='add batch normalization')
     parser.add_option('--arch', dest='arch', help='model architecture (vgg_v1|vgg_v2|baseline')
+    parser.add_option('--data_path', dest='data_path', default='data/train/',
+                      help='path to training files directory')
+    parser.add_option('--output_dir', dest='output_dir', default='models/',
+                      help='directory to save files with training results')
     (options, args) = parser.parse_args()
     if options.arch is None:
         parser.error('Required option --arch (vgg_v1|vgg_v2|baseline).')
     config.update(vars(options))
 
-    train_df, validation_df, _ = get_train_data_frames(DATA_PATH)
-    train_data = generate_data_flow(train_df, config, DATA_PATH, config['data_augment'])
-    validation_data = generate_data_flow(validation_df, config, DATA_PATH)
+    train_df, validation_df, _ = get_train_data_frames(options.data_path)
+    train_data = generate_data_flow(train_df, config, options.data_path)
+    validation_data = generate_data_flow(validation_df, config, options.data_path)
+
     model = generate_model(config)
     model.summary()
     print(config)
+
     history = train(model,
                     train_data,
                     validation_data,
-                    steps_per_epoch=len(train_df)//config['batch'],
-                    validation_steps=len(validation_df)//config['batch'],
+                    steps_per_epoch=len(train_df) // config['batch'],
+                    validation_steps=len(validation_df) // config['batch'],
                     epochs=config['max_epochs'],
                     learning_rate=config['learning_rate'],
                     patience=config['early_stop'])
-    serialize(model, history, config, OUTPUT_DIR)
+    serialize(model, history, config, options.output_dir)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

@@ -1,8 +1,18 @@
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Conv2D, Flatten, Dropout, MaxPooling2D, BatchNormalization, Dropout, ReLU
+from tensorflow.keras.layers import Dense, Conv2D, Flatten, Dropout, MaxPooling2D, BatchNormalization, ReLU
 
 
 def add_conv(model, filters, dropout, batch_norm):
+    """
+    Adds to model convolution layer with optional dropout and batch normalization.
+
+    Args:
+        model (Sequential): object with model structure
+        filters (int): number of filters
+        dropout (bool): if True adds dropout
+        batch_norm (boot): if True adds batch normalization
+    """
+
     model.add(Conv2D(filters, 3, padding='same', activation=None))
     if batch_norm: model.add(BatchNormalization())
     model.add(ReLU())
@@ -10,6 +20,20 @@ def add_conv(model, filters, dropout, batch_norm):
 
 
 def generate_model(conf):
+    """
+        Initializes model structure.
+
+        Args:
+            conf (dict): model configuration parameters
+
+        Returns:
+            model (Sequential): object with model structure
+
+        Raises:
+            KeyError: if there is not 'arch' key in configuration dict
+            ValueError: if 'arch' parameter does not match known model structure
+    """
+
     if 'arch' not in conf:
         raise KeyError('Missing "arch" in config.')
     if conf['arch'] == 'vgg_v1':
@@ -22,6 +46,16 @@ def generate_model(conf):
 
 
 def get_vgg_v1(conf):
+    """
+        Generates object with predefined VGG model structure.
+
+        Args:
+            conf (dict): model configuration parameters
+
+        Returns:
+            model (Sequential): object with model structure
+    """
+
     model = Sequential()
 
     model.add(Conv2D(32, 3, padding='same', activation=None, input_shape=(conf['height'], conf['width'], 3)))
@@ -67,6 +101,16 @@ def get_vgg_v1(conf):
 
 
 def get_vgg_v2(conf):
+    """
+        Generates object with predefined bigger VGG model structure.
+
+        Args:
+            conf (dict): model configuration parameters
+
+        Returns:
+            model (Sequential): object with model structure
+    """
+
     model = Sequential()
 
     model.add(Conv2D(64, 3, padding='same', activation=None, input_shape=(conf['height'], conf['width'], 3)))
@@ -112,6 +156,16 @@ def get_vgg_v2(conf):
 
 
 def get_baseline(conf):
+    """
+        Generates object with predefined baseline model structure.
+
+        Args:
+            conf (dict): model configuration parameters
+
+        Returns:
+            model (Sequential): object with model structure
+    """
+
     model = Sequential()
 
     model.add(Conv2D(16, 3, padding='same', activation=None, input_shape=(conf['height'], conf['width'], 3)))
