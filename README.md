@@ -77,7 +77,7 @@ or if you can work with GPU:
 To train new image classification model run:
 
 ```
-./scripts/run_in_docker.sh python src/train.py --arch vgg_v1
+./scripts/run_in_docker.sh python src/train.py --arch vgg_v2
 ```
 
 There are 3 predefined model architectures (--arch arg) available:
@@ -132,6 +132,14 @@ Loading category: dog
 Loading category: human
 Found 3523 validated image filenames belonging to 3 classes.
 
+Model: models/model-2a05ce2.mdl
+Total accuracy: 0.9472040874254897
+cat accuracy
+0.9738396624472574
+dog accuracy
+0.8554801163918526
+human accuracy
+0.9954093343534812
 ```
 
 
@@ -140,7 +148,7 @@ Found 3523 validated image filenames belonging to 3 classes.
 To classify jpg images run:
 
 ```
-./scripts/run_in_docker.sh python src/predict.py -m models/model-HASH.mdl \
+./scripts/run_in_docker.sh python src/predict.py -m models/model-2a05ce2.mdl \
         -d data/samples/ -o output_file.csv
 ```
 
@@ -158,12 +166,25 @@ data/samples/human0.jpg,0,0,1
 # Results
 
 
+As yet unresolved problem appeared, where predictions and evaluations of same model
+perform slightly different on different hosts (although same docker images). Taking
+this into considerations scores are presented in two versions: 1st matching
+training machine, 2nd matching alternative host in brackets.
+
 Evaluation on test set separated from training data (10% of original data set):
 
+```Model: models/model-2a05ce2.mdl
+Total accuracy: 0.9472040874254897 (0.9477717854101618)
+cat accuracy:   0.9738396624472574 (0.9755274261603376)
+dog accuracy:   0.8554801163918526 (0.8564500484966052)
+human accuracy: 0.9954093343534812 (0.9946442234123948)
+```
 
-Results were achieved with following training:
+Results were achieved with following training command:
 
 ```
 /scripts/run_in_docker_gpu.sh python src/train.py -a --width 256 --height 256 \
     --arch vgg_v2 -b 16 -l 0.0001 -e 10
 ```
+
+Training was performed with GTX 1060 and took around. 13 hours.
